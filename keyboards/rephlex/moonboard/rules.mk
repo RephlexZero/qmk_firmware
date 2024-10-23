@@ -7,7 +7,5 @@ CUSTOM_MATRIX = lite
 
 OPT = 2
 
-AUDIO_DRIVER = dac_basic
-
 WEAR_LEVELING_DRIVER = embedded_flash
 
