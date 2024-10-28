@@ -4,10 +4,6 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #include "scanfunctions.h"
 #include "util.h"
 
-// const double a = 16654600.6755; // Lekker
-// const double b = -0.00955994866577;
-// const double c = -1278.75103145;
-// const double d = 16652478.4163;
 
 /* Equation parameters for the sensor-magnet linearity mapping */
 const double lut_a = 0.200347177016; // Latenpow
