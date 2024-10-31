@@ -6,7 +6,11 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 
 #define EECONFIG_KB_DATA_SIZE 6
 
+#define DEBUG_ENABLE
+#define DEBUG_MATRIX_SCAN_RATE
+
 #define ADC_RESOLUTION 12
+#define ADC_RESOLUTION_MAX (1 << ADC_RESOLUTION)
 
 #define CALIBRATION_RANGE 255
 

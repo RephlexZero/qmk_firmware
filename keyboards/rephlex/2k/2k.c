@@ -20,9 +20,13 @@ analog_config g_config = {
 };
 
 #ifdef BOOTMAGIC_ENABLE
-extern pin_t matrix_pins[MATRIX_ROWS][MATRIX_COLS];
-void         bootmagic_lite(void) {
-    if (analogReadPin(matrix_pins[BOOTMAGIC_LITE_ROW][BOOTMAGIC_LITE_COLUMN]) < 1350) {
+void bootmagic_scan(void) {
+    matrix_scan();
+
+    uint16_t threshold = distance_to_adc(CALIBRATION_RANGE * 3 / 4);
+    uint16_t raw_value = keys[BOOTMAGIC_ROW][BOOTMAGIC_COLUMN].raw;
+
+    if (((lut_b > 0) && (raw_value > threshold)) || ((lut_b < 0) && (raw_value < threshold))) {
         bootloader_jump();
     }
 }
@@ -32,21 +36,30 @@ void         bootmagic_lite(void) {
 
 #    ifdef DEBUG_ENABLE
 deferred_token debug_token;
-bool           debug_print(void) {
-    char buffer[MATRIX_ROWS * MATRIX_COLS * 5 + MATRIX_ROWS * 2];
-    buffer[0] = '\0';
 
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            analog_key_t *key = &keys[row][col];
-            char   temp[6];
-            snprintf(temp, sizeof(temp), "%5u", key->value);
-            strcat(buffer, temp);
+bool debug_print(void) {
+    static char rowBuffer[MATRIX_COLS * 8]; // 8: for 7 characters (" null  " or " 12345  ") + '\0'
+    static uint8_t currentRow = 0;
+    char *bufferPtr = rowBuffer;
+
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        analog_key_t *key = &keys[currentRow][col];
+        if (key->raw) {
+            bufferPtr += snprintf(bufferPtr, sizeof(rowBuffer) - (bufferPtr - rowBuffer), "%5u  ", key->value);
+        } else {
+            bufferPtr += snprintf(bufferPtr, sizeof(rowBuffer) - (bufferPtr - rowBuffer), " null   ");
         }
-        strcat(buffer, "\n");
     }
 
-    uprintf("Analog values:\n%s", buffer);
+    uprintf("%s\n", rowBuffer);
+    currentRow++;
+
+    if (currentRow >= MATRIX_ROWS) {
+        currentRow = 0;
+        uprintf("\n");
+        return false;
+    }
+
     return true;
 }
 

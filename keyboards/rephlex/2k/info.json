@@ -8,9 +8,9 @@
   "features": {
     "bootmagic": true,
     "mousekey": false,
-    "extrakey": false,
-    "console": false,
-    "command": false,
+    "extrakey": true,
+    "console": true,
+    "command": true,
     "nkro": true,
     "rgb_matrix": true,
     "oled": true,
@@ -39,6 +39,8 @@
   },
   "rgb_matrix": {
     "driver": "ws2812",
+    "max_brightness": 255,
+    "default_brightness": 32,
     "led_count": 6,
     "sleep": true,
     "timeout": 60000,
