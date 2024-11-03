@@ -10,12 +10,12 @@ const double lut_b = 0.00955994866154;
 const double lut_c = 6.01110636956;
 const double lut_d = 1966.74076381;
 
-static inline uint16_t distance_to_adc(uint8_t distance) {
+uint16_t distance_to_adc(uint8_t distance) {
     double intermediate = lut_a * exp(lut_b * distance + lut_c) + lut_d;
     return (uint16_t) fmax(0, fmin(intermediate, 4095));
 }
 
-static inline uint8_t adc_to_distance(uint16_t adc) {
+uint8_t adc_to_distance(uint16_t adc) {
     double check = (adc - lut_d) / lut_a;
     if (check <= 0) {
         return 0;
