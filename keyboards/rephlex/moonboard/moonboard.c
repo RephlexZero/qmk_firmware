@@ -30,6 +30,7 @@ void bootmagic_scan(void) {
 #ifdef DEFERRED_EXEC_ENABLE
 
 #    ifdef DEBUG_ENABLE
+#    ifdef DEBUG_PRINT
 deferred_token debug_token;
 
 bool debug_print(void) {
@@ -63,6 +64,7 @@ uint32_t debug_print_callback(uint32_t trigger_time, void *cb_arg) {
     return 100; // Assuming this is in milliseconds
 }
 #endif
+#endif
 
 deferred_token idle_recalibrate_token;
 bool           process_record_kb(uint16_t keycode, keyrecord_t *record) {
@@ -91,7 +93,9 @@ void eeconfig_init_kb() {
 void keyboard_post_init_kb(void) {
 #ifdef DEFERRED_EXEC_ENABLE
 #    ifdef DEBUG_ENABLE
+#    ifdef DEBUG_PRINT
     debug_token = defer_exec(1000, debug_print_callback, NULL);
+#    endif
 #    endif
     idle_recalibrate_token = defer_exec(300000, idle_recalibrate_callback, NULL);
 #endif
