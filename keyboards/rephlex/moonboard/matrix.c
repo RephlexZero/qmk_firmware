@@ -38,7 +38,7 @@ static inline uint8_t greycode(uint8_t channel) {
     return (channel >> 1) ^ channel;
 }
 
-/// @brief Process the ADC readings for the previous multiplexer channel scan.
+// Process the ADC readings for the previous multiplexer channel scan.
 static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
     const ADCManager *adcManager      = getAdcManagerSnapshot();
     const uint8_t sequence[MUXES] = {0, 2, 5, 1, 3, 4};
@@ -71,26 +71,17 @@ static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
 
 bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     memcpy(previous_matrix, current_matrix, sizeof(previous_matrix));
-    static bool    first_iteration = true;
-    static uint8_t prev_ch         = 0;
+    uint8_t prev_ch = greycode(0);
 
-    // Iterate over each multiplexer channel.
-    for (uint8_t ch = 0; ch < MUX_CHANNELS; ++ch) {
+    // Start the first ADC conversion outside the loop.
+    adcStartAllConversions(prev_ch);
+    waitForAdcConversion();
+
+    // Iterate over remaining multiplexer channels.
+    for (uint8_t ch = 1; ch < MUX_CHANNELS; ++ch) {
         uint8_t grey_ch = greycode(ch);
         adcStartAllConversions(grey_ch);
-
-        if (first_iteration) {
-            // On the first iteration, wait for the conversion and store the channel.
-            waitForAdcConversion();
-            first_iteration = false;
-            prev_ch         = grey_ch;
-            continue;
-        }
-
-        // Process ADC values from the previous conversion for each multiplexer.
         process_adc_readings(current_matrix, prev_ch);
-
-        // Wait for conversion before starting the next channel scan.
         waitForAdcConversion();
         prev_ch = grey_ch;
     }
