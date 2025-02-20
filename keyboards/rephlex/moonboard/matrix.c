@@ -1,5 +1,6 @@
 /* Copyright 2023 RephlexZero (@RephlexZero)
 SPDX-License-Identifier: GPL-2.0-or-later */
+#include "matrix.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -39,11 +40,11 @@ static inline uint8_t greycode(uint8_t channel) {
 }
 
 /// @brief Process the ADC readings for the previous multiplexer channel scan.
-static void process_adc_readings(uint8_t prev_ch) {
+static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
     const uint8_t sequence[MUXES] = {0, 2, 5, 1, 3, 4};
     for (uint8_t i = 0; i < MUXES; ++i) {
         uint8_t mux = sequence[i];
-        const mux_t *mux_idx = &mux_index[mux][prev_ch];
+        const mux_t *mux_idx = &mux_index[mux][ch];
         if (mux_idx->row == 255 && mux_idx->col == 255)
             continue; // Skip unconnected mux pin.
 
@@ -53,13 +54,13 @@ static void process_adc_readings(uint8_t prev_ch) {
 
         switch (g_config.mode) {
             case dynamic_actuation:
-                matrix_read_cols_dynamic_actuation(&keys[mux_idx->row][0], mux_idx->col, key);
+                matrix_read_cols_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
                 break;
             case continuous_dynamic_actuation:
-                matrix_read_cols_continuous_dynamic_actuation(&keys[mux_idx->row][0], mux_idx->col, key);
+                matrix_read_cols_continuous_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
                 break;
             case static_actuation:
-                matrix_read_cols_static_actuation(&keys[mux_idx->row][0], mux_idx->col, key);
+                matrix_read_cols_static_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
                 break;
             case flashing:
             default:
@@ -88,7 +89,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
         }
 
         // Process ADC values from the previous conversion for each multiplexer.
-        process_adc_readings(prev_ch);
+        process_adc_readings(current_matrix,prev_ch);
 
         // Wait for conversion before starting the next channel scan.
         waitForAdcConversion();

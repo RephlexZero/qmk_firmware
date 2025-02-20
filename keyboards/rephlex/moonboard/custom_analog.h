@@ -26,5 +26,9 @@ typedef struct {
 } ADCManager;
 
 void initADCGroups(void);
+msg_t adcStartAllConversions(uint8_t channel);
+void adcErrorCallback(ADCDriver *adcp, adcerror_t err);
+adcsample_t getADCSample(uint8_t muxIndex);
+bool waitForAdcConversion(void);
 
 #endif
