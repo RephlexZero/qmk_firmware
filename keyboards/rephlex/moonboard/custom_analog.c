@@ -8,27 +8,29 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 // Define the global ADC manager instance
 ADCManager adcManager;
 
-static void adcCompleteCallback(ADCDriver *adcp) {
-    (void)adcp; // Unused parameter
-    adcManager.completedConversions++;
-    if (adcManager.completedConversions == 3) {
-        chSemSignalI(&adcManager.sem); // Signal the semaphore
-    }
-    // Copy the ADC samples to the processing buffer
+/// Helper function to copy ADC sample buffers to processing buffers.
+static inline void copySamplesToProcessing(void) {
     adcManager.processingBuffer1[0] = adcManager.sampleBuffer1[0];
     adcManager.processingBuffer1[1] = adcManager.sampleBuffer1[1];
     adcManager.processingBuffer2[0] = adcManager.sampleBuffer2[0];
     adcManager.processingBuffer2[1] = adcManager.sampleBuffer2[1];
     adcManager.processingBuffer4[0] = adcManager.sampleBuffer4[0];
     adcManager.processingBuffer4[1] = adcManager.sampleBuffer4[1];
+}
 
+static void adcCompleteCallback(ADCDriver *adcp) {
+    (void)adcp; // Unused parameter
+    adcManager.completedConversions++;
+    if (adcManager.completedConversions == 3) {
+        chSemSignalI(&adcManager.sem); // Signal the semaphore
+    }
+    copySamplesToProcessing();
 }
 
 bool waitForAdcConversion(void) {
     chSemWait(&adcManager.sem); // Wait for the semaphore to be signalled
     return true;
 }
-
 
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err) {
     (void)adcp; // Unused parameter
@@ -111,7 +113,7 @@ adcsample_t getADCSample(uint8_t muxIndex) {
             return adcManager.processingBuffer2[1];
         case 4:
             // SWAPPED!!! Due to physical hardware arangement
-            return adcManager.processingBuffer4[1]; 
+            return adcManager.processingBuffer4[1];
         case 5:
             return adcManager.processingBuffer4[0];
         default:

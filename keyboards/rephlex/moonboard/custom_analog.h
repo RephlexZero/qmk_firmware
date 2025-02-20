@@ -7,9 +7,11 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #include "hal.h"
 #include "hal_adc_lld.h"
 
-// Constants
-#define SAMPLE_BUFFER_SIZE 2  // Adjust as necessary
-#define MUXES 6  // Number of multiplexer lines, adjust as necessary
+#define ADC_GROUPS 3
+
+#define SAMPLE_BUFFER_SIZE 2
+
+#define MUXES 6
 
 // Type Definitions
 typedef struct {
@@ -23,11 +25,6 @@ typedef struct {
     semaphore_t sem;
 } ADCManager;
 
-// Function Prototypes
 void initADCGroups(void);
-msg_t adcStartAllConversions(uint8_t channel);
-void adcErrorCallback(ADCDriver *adcp, adcerror_t err);
-adcsample_t getADCSample(uint8_t muxIndex);
-bool waitForAdcConversion(void);
 
-#endif // CUSTOM_ANALOG_H
+#endif
