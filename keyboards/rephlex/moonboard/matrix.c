@@ -33,40 +33,65 @@ void matrix_init_custom(void) {
 
 matrix_row_t previous_matrix[MATRIX_ROWS];
 
+// Add the greycode conversion function
+static inline uint8_t greycode(uint8_t channel) {
+    return (channel >> 1) ^ channel;
+}
+
 bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     memcpy(previous_matrix, current_matrix, sizeof(previous_matrix));
-
-    for (uint8_t channel = 0; channel < MUX_CHANNELS; ++channel) {
-        uint8_t channel_greycoded = (channel >> 1) ^ channel;
-        select_mux(channel_greycoded);
+    static bool first_iteration = true;
+    uint8_t prev_ch = 0;
+    
+    // Iterate over each multiplexer channel.
+    for (uint8_t ch = 0; ch < MUX_CHANNELS; ++ch) {
+        uint8_t grey_ch = greycode(ch);
+        select_mux(grey_ch);
         adcStartAllConversions(&adcManager);
-
-        for (uint8_t mux = 0; mux < MUXES; ++mux) {
-            const mux_t *mux_idx = &mux_index[mux][channel_greycoded];
-
-            if (mux_idx->row == 255 && mux_idx->col == 255) continue; // NC mux pin
-
+        
+        if (first_iteration) {
+            // On the first iteration, wait for the conversion and store the channel.
+            waitForAdcConversion();
+            first_iteration = false;
+            prev_ch = grey_ch;
+            continue;
+        }
+        
+        // Process ADC values from the previous conversion for each multiplexer.
+        uint8_t sequence[6] = {0, 2, 4, 1, 3, 5};
+        for (uint8_t i = 0; i < 6; ++i) {
+            uint8_t mux = sequence[i];
+            const mux_t *mux_idx = &mux_index[mux][prev_ch];
+            if (mux_idx->row == 255 && mux_idx->col == 255) {
+            continue; // Skip non-connected mux pin.
+            }
+            
             analog_key_t *key = &keys[mux_idx->row][mux_idx->col];
-            key->raw          = getADCSample(&adcManager, mux);
-            key->value        = lut[key->raw + key->offset];
-
+            key->raw = getADCSample(&adcManager, mux);
+            key->value = lut[key->raw + key->offset];
+            
             switch (g_config.mode) {
-                case dynamic_actuation:
-                    matrix_read_cols_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
-                    break;
-                case continuous_dynamic_actuation:
-                    matrix_read_cols_continuous_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
-                    break;
-                case static_actuation:
-                    matrix_read_cols_static_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
-                    break;
-                case flashing:
-                default:
-                    bootloader_jump();
-                    break;
+            case dynamic_actuation:
+                matrix_read_cols_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
+                break;
+            case continuous_dynamic_actuation:
+                matrix_read_cols_continuous_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
+                break;
+            case static_actuation:
+                matrix_read_cols_static_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
+                break;
+            case flashing:
+            default:
+                bootloader_jump();
+                break;
             }
         }
+        
+        // Wait for conversion before starting the next channel scan.
+        waitForAdcConversion();
+        prev_ch = grey_ch;
     }
+
 #ifdef ENCODER_ENABLE
     bool encoder_button_pressed = gpio_read_pin(ENCODER_BUTTON_PIN);
     if (current_matrix[ENCODER_ROW] & (1 << ENCODER_COL)) {

@@ -5,6 +5,7 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #define CUSTOM_ANALOG_H
 
 #include "hal.h"
+#include "hal_adc_lld.h"
 
 // Constants
 #define SAMPLE_BUFFER_SIZE 2  // Adjust as necessary
@@ -27,5 +28,6 @@ void initADCGroups(ADCManager *adcManager);
 msg_t adcStartAllConversions(ADCManager *adcManager);
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err);
 adcsample_t getADCSample(const ADCManager *adcManager, uint8_t muxIndex);
+bool waitForAdcConversion(void);
 
 #endif // CUSTOM_ANALOG_H

@@ -10,13 +10,17 @@ ADCManager adcManager;
 
 static void adcCompleteCallback(ADCDriver *adcp) {
     (void)adcp; // Unused parameter
-    osalSysLockFromISR();
     adcManager.completedConversions++;
     if (adcManager.completedConversions == 3) {
         chSemSignalI(&adcManager.sem); // Signal the semaphore
     }
-    osalSysUnlockFromISR();
 }
+
+bool await_conversion_completion(void) {
+    chSemWait(&adcManager.sem); // Wait for the semaphore to be signalled
+    return true;
+}
+
 
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err) {
     (void)adcp; // Unused parameter
@@ -75,7 +79,6 @@ void initADCGroups(ADCManager *adcManager) {
 }
 
 msg_t adcStartAllConversions(ADCManager *adcManager) {
-    osalSysLock();
     adcManager->completedConversions = 0;
 
     // Start conversions on multiple ADCs
@@ -83,12 +86,9 @@ msg_t adcStartAllConversions(ADCManager *adcManager) {
     adcStartConversionI(&ADCD2, &adcConversionGroup, adcManager->sampleBuffer2, 1);
     adcStartConversionI(&ADCD4, &adcConversionGroup, adcManager->sampleBuffer4, 1);
 
-    osalSysUnlock();
-
-    chSemWaitTimeout(&adcManager->sem, TIME_INFINITE);
-
     return MSG_OK;
 }
+
 
 adcsample_t getADCSample(const ADCManager *adcManager, uint8_t muxIndex) {
     switch (muxIndex) {
