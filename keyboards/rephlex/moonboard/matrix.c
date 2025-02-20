@@ -14,7 +14,6 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #include "gpio.h"
 
 // External definitions
-extern ADCManager  adcManager;
 extern const mux_t mux_index[MUXES][MUX_CHANNELS];
 
 analog_key_t    keys[MATRIX_ROWS][MATRIX_COLS] = {0};
@@ -41,16 +40,16 @@ static inline uint8_t greycode(uint8_t channel) {
 
 /// @brief Process the ADC readings for the previous multiplexer channel scan.
 static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
+    const ADCManager adcManager = getAdcManager();
     const uint8_t sequence[MUXES] = {0, 2, 5, 1, 3, 4};
     for (uint8_t i = 0; i < MUXES; ++i) {
-        uint8_t mux = sequence[i];
+        uint8_t      mux     = sequence[i];
         const mux_t *mux_idx = &mux_index[mux][ch];
-        if (mux_idx->row == 255 && mux_idx->col == 255)
-            continue; // Skip unconnected mux pin.
+        if (mux_idx->row == 255 && mux_idx->col == 255) continue; // Skip unconnected mux pin.
 
         analog_key_t *key = &keys[mux_idx->row][mux_idx->col];
-        key->raw = getADCSample(mux);
-        key->value = lut[key->raw + key->offset];
+        key->raw          = getADCSample(adcManager, mux);
+        key->value        = lut[key->raw + key->offset];
 
         switch (g_config.mode) {
             case dynamic_actuation:
@@ -72,8 +71,8 @@ static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
 
 bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     memcpy(previous_matrix, current_matrix, sizeof(previous_matrix));
-    static bool first_iteration = true;
-    static uint8_t prev_ch = 0;
+    static bool    first_iteration = true;
+    static uint8_t prev_ch         = 0;
 
     // Iterate over each multiplexer channel.
     for (uint8_t ch = 0; ch < MUX_CHANNELS; ++ch) {
@@ -84,12 +83,12 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
             // On the first iteration, wait for the conversion and store the channel.
             waitForAdcConversion();
             first_iteration = false;
-            prev_ch = grey_ch;
+            prev_ch         = grey_ch;
             continue;
         }
 
         // Process ADC values from the previous conversion for each multiplexer.
-        process_adc_readings(current_matrix,prev_ch);
+        process_adc_readings(current_matrix, prev_ch);
 
         // Wait for conversion before starting the next channel scan.
         waitForAdcConversion();

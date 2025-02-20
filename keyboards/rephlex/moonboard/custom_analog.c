@@ -8,14 +8,8 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 // Define the global ADC manager instance
 ADCManager adcManager;
 
-/// Helper function to copy ADC sample buffers to processing buffers.
-static inline void copySamplesToProcessing(void) {
-    adcManager.processingBuffer1[0] = adcManager.sampleBuffer1[0];
-    adcManager.processingBuffer1[1] = adcManager.sampleBuffer1[1];
-    adcManager.processingBuffer2[0] = adcManager.sampleBuffer2[0];
-    adcManager.processingBuffer2[1] = adcManager.sampleBuffer2[1];
-    adcManager.processingBuffer4[0] = adcManager.sampleBuffer4[0];
-    adcManager.processingBuffer4[1] = adcManager.sampleBuffer4[1];
+const ADCManager getAdcManager(void) {
+    return adcManager;
 }
 
 static void adcCompleteCallback(ADCDriver *adcp) {
@@ -24,7 +18,6 @@ static void adcCompleteCallback(ADCDriver *adcp) {
     if (adcManager.completedConversions == 3) {
         chSemSignalI(&adcManager.sem); // Signal the semaphore
     }
-    copySamplesToProcessing();
 }
 
 bool waitForAdcConversion(void) {
@@ -101,21 +94,21 @@ msg_t adcStartAllConversions(uint8_t channel) {
 }
 
 
-adcsample_t getADCSample(uint8_t muxIndex) {
+adcsample_t getADCSample(const ADCManager adcManager, uint8_t muxIndex) {
     switch (muxIndex) {
         case 0:
-            return adcManager.processingBuffer1[0];
+            return adcManager.sampleBuffer1[0];
         case 1:
-            return adcManager.processingBuffer1[1];
+            return adcManager.sampleBuffer1[1];
         case 2:
-            return adcManager.processingBuffer2[0];
+            return adcManager.sampleBuffer2[0];
         case 3:
-            return adcManager.processingBuffer2[1];
+            return adcManager.sampleBuffer2[1];
         case 4:
             // SWAPPED!!! Due to physical hardware arangement
-            return adcManager.processingBuffer4[1];
+            return adcManager.sampleBuffer4[1];
         case 5:
-            return adcManager.processingBuffer4[0];
+            return adcManager.sampleBuffer4[0];
         default:
             return 0; // Invalid index
     }
