@@ -22,12 +22,12 @@ typedef struct {
     semaphore_t sem;
 } ADCManager;
 
-const ADCManager getAdcManager(void);
+const ADCManager *getAdcManagerSnapshot(void);
 
 void initADCGroups(void);
 msg_t adcStartAllConversions(uint8_t channel);
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err);
-adcsample_t getADCSample(ADCManager adcManager, uint8_t muxIndex);
+adcsample_t getADCSample(const ADCManager *adcManager, uint8_t muxIndex);
 bool waitForAdcConversion(void);
 
 #endif

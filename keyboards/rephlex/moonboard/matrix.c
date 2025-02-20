@@ -40,7 +40,7 @@ static inline uint8_t greycode(uint8_t channel) {
 
 /// @brief Process the ADC readings for the previous multiplexer channel scan.
 static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
-    const ADCManager adcManager = getAdcManager();
+    const ADCManager *adcManager      = getAdcManagerSnapshot();
     const uint8_t sequence[MUXES] = {0, 2, 5, 1, 3, 4};
     for (uint8_t i = 0; i < MUXES; ++i) {
         uint8_t      mux     = sequence[i];
