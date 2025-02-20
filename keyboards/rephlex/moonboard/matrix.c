@@ -26,7 +26,7 @@ void matrix_init_custom(void) {
     pressedAdcValue = distance_to_adc(255);
     restAdcValue    = distance_to_adc(0);
     multiplexer_init();
-    initADCGroups(&adcManager);
+    initADCGroups();
     wait_ms(100);
     get_sensor_offsets();
 }
@@ -46,8 +46,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     // Iterate over each multiplexer channel.
     for (uint8_t ch = 0; ch < MUX_CHANNELS; ++ch) {
         uint8_t grey_ch = greycode(ch);
-        select_mux(grey_ch);
-        adcStartAllConversions(&adcManager);
+        adcStartAllConversions(grey_ch);
         
         if (first_iteration) {
             // On the first iteration, wait for the conversion and store the channel.
@@ -58,8 +57,8 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
         }
         
         // Process ADC values from the previous conversion for each multiplexer.
-        uint8_t sequence[6] = {0, 2, 4, 1, 3, 5};
-        for (uint8_t i = 0; i < 6; ++i) {
+        uint8_t sequence[MUXES] = {0, 2, 5, 1, 3, 4};
+        for (uint8_t i = 0; i < MUXES; ++i) {
             uint8_t mux = sequence[i];
             const mux_t *mux_idx = &mux_index[mux][prev_ch];
             if (mux_idx->row == 255 && mux_idx->col == 255) {
@@ -67,7 +66,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
             }
             
             analog_key_t *key = &keys[mux_idx->row][mux_idx->col];
-            key->raw = getADCSample(&adcManager, mux);
+            key->raw = getADCSample(mux);
             key->value = lut[key->raw + key->offset];
             
             switch (g_config.mode) {

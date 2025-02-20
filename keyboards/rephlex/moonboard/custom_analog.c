@@ -14,9 +14,17 @@ static void adcCompleteCallback(ADCDriver *adcp) {
     if (adcManager.completedConversions == 3) {
         chSemSignalI(&adcManager.sem); // Signal the semaphore
     }
+    // Copy the ADC samples to the processing buffer
+    adcManager.processingBuffer1[0] = adcManager.sampleBuffer1[0];
+    adcManager.processingBuffer1[1] = adcManager.sampleBuffer1[1];
+    adcManager.processingBuffer2[0] = adcManager.sampleBuffer2[0];
+    adcManager.processingBuffer2[1] = adcManager.sampleBuffer2[1];
+    adcManager.processingBuffer4[0] = adcManager.sampleBuffer4[0];
+    adcManager.processingBuffer4[1] = adcManager.sampleBuffer4[1];
+
 }
 
-bool await_conversion_completion(void) {
+bool waitForAdcConversion(void) {
     chSemWait(&adcManager.sem); // Wait for the semaphore to be signalled
     return true;
 }
@@ -67,9 +75,9 @@ static const ADCConversionGroup adcConversionGroup = {
     }
 };
 
-void initADCGroups(ADCManager *adcManager) {
-    adcManager->completedConversions = 0;
-    chSemObjectInit(&adcManager->sem, 0); // Initialize semaphore with a count of 0
+void initADCGroups() {
+    adcManager.completedConversions = 0;
+    chSemObjectInit(&adcManager.sem, 0); // Initialize semaphore with a count of 0
     for (uint8_t i = 0; i < MUXES; i++) {
         palSetLineMode(mux_pins[i], PAL_MODE_INPUT_ANALOG);
     }
@@ -78,32 +86,34 @@ void initADCGroups(ADCManager *adcManager) {
     adcStart(&ADCD4, NULL); // Start ADC4
 }
 
-msg_t adcStartAllConversions(ADCManager *adcManager) {
-    adcManager->completedConversions = 0;
+msg_t adcStartAllConversions(uint8_t channel) {
+    adcManager.completedConversions = 0;
+    select_mux(channel);
 
     // Start conversions on multiple ADCs
-    adcStartConversionI(&ADCD1, &adcConversionGroup, adcManager->sampleBuffer1, 1);
-    adcStartConversionI(&ADCD2, &adcConversionGroup, adcManager->sampleBuffer2, 1);
-    adcStartConversionI(&ADCD4, &adcConversionGroup, adcManager->sampleBuffer4, 1);
+    adcStartConversionI(&ADCD1, &adcConversionGroup, adcManager.sampleBuffer1, 1);
+    adcStartConversionI(&ADCD2, &adcConversionGroup, adcManager.sampleBuffer2, 1);
+    adcStartConversionI(&ADCD4, &adcConversionGroup, adcManager.sampleBuffer4, 1);
 
     return MSG_OK;
 }
 
 
-adcsample_t getADCSample(const ADCManager *adcManager, uint8_t muxIndex) {
+adcsample_t getADCSample(uint8_t muxIndex) {
     switch (muxIndex) {
         case 0:
-            return adcManager->sampleBuffer1[0];
+            return adcManager.processingBuffer1[0];
         case 1:
-            return adcManager->sampleBuffer1[1];
+            return adcManager.processingBuffer1[1];
         case 2:
-            return adcManager->sampleBuffer2[0];
+            return adcManager.processingBuffer2[0];
         case 3:
-            return adcManager->sampleBuffer2[1];
+            return adcManager.processingBuffer2[1];
         case 4:
-            return adcManager->sampleBuffer4[1]; // SWAPPED!!!
+            // SWAPPED!!! Due to physical hardware arangement
+            return adcManager.processingBuffer4[1]; 
         case 5:
-            return adcManager->sampleBuffer4[0];
+            return adcManager.processingBuffer4[0];
         default:
             return 0; // Invalid index
     }
