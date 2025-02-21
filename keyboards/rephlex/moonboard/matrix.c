@@ -14,8 +14,9 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #include "gpio.h"
 
 // External definitions
-extern const mux_t mux_index[MUXES][MUX_CHANNELS];
-extern ADCManager  adcManager;
+// Remove duplicate externs if already declared via other headers:
+// extern const mux_t mux_index[MUXES][MUX_CHANNELS];
+// extern ADCManager  adcManager;
 
 analog_key_t    keys[MATRIX_ROWS][MATRIX_COLS] = {0};
 static uint16_t pressedAdcValue                = 0;
@@ -74,7 +75,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     uint8_t current = greycode(0);
     adcStartAllConversions(current);
     waitForAdcConversion();
-    ADCManager curr_snapshot = adcManager;
+    ADCManager curr_snapshot = *getAdcManagerSnapshot();
 
     // Pipeline the ADC conversions.
     for (uint8_t ch = 1; ch < MUX_CHANNELS; ch++) {
@@ -82,7 +83,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
         adcStartAllConversions(next);
         process_adc_readings(current_matrix, current, &curr_snapshot);
         waitForAdcConversion();
-        curr_snapshot = adcManager;
+        curr_snapshot = *getAdcManagerSnapshot();
         current       = next;
     }
     // Process the final conversion result.

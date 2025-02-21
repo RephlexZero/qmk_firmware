@@ -88,3 +88,8 @@ msg_t adcStartAllConversions(uint8_t channel) {
 
     return MSG_OK;
 }
+
+// New: Provide a central snapshot accessor.
+const ADCManager *getAdcManagerSnapshot(void) {
+    return &adcManager;
+}
