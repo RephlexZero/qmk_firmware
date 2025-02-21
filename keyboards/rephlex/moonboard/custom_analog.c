@@ -10,10 +10,7 @@ ADCManager adcManager;
 
 static void adcCompleteCallback(ADCDriver *adcp) {
     (void)adcp; // Unused parameter
-    adcManager.completedConversions++;
-    if (adcManager.completedConversions == 3) {
-        chSemSignalI(&adcManager.sem); // Signal the semaphore
-    }
+    chSemSignalI(&adcManager.sem);
 }
 
 bool waitForAdcConversion(void) {
@@ -23,7 +20,6 @@ bool waitForAdcConversion(void) {
 
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err) {
     (void)adcp; // Unused parameter
-    osalSysLockFromISR();
     switch (err) {
         case ADC_ERR_DMAFAILURE:
             uprintf("ADC ERROR: DMA failure.\n");
@@ -44,15 +40,14 @@ void adcErrorCallback(ADCDriver *adcp, adcerror_t err) {
             uprintf("ADC ERROR: Unknown error.\n");
             break;
     }
-    osalSysUnlockFromISR();
 }
 
 static const ADCConversionGroup adcConversionGroup = {
-    .circular     = false,
+    .circular     = true,  // Enable circular mode for continuous DMA
     .num_channels = 2U,
     .end_cb       = adcCompleteCallback,
     .error_cb     = adcErrorCallback,
-    .cfgr         = ADC_RESOLUTION,
+    .cfgr         = ADC_RESOLUTION | ADC_CFGR_DMAEN, // Enable DMA
     .tr1          = ADC_TR_DISABLED,
     .tr2          = ADC_TR_DISABLED,
     .tr3          = ADC_TR_DISABLED,
@@ -89,7 +84,7 @@ msg_t adcStartAllConversions(uint8_t channel) {
     return MSG_OK;
 }
 
-// New: Provide a central snapshot accessor.
+// Snapshot accessor.
 const ADCManager *getAdcManagerSnapshot(void) {
     return &adcManager;
 }
