@@ -88,6 +88,9 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     // Process the final conversion result.
     process_adc_readings(current_matrix, current, &curr_snapshot);
 
+    // Process the last multiplexer channel.
+    process_adc_readings(current_matrix, prev_ch);
+
 #ifdef ENCODER_ENABLE
     bool encoder_button_pressed = gpio_read_pin(ENCODER_BUTTON_PIN);
     if (current_matrix[ENCODER_ROW] & (1 << ENCODER_COL)) {
