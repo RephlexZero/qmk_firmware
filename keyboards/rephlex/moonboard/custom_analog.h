@@ -27,7 +27,15 @@ const ADCManager *getAdcManagerSnapshot(void);
 void initADCGroups(void);
 msg_t adcStartAllConversions(uint8_t channel);
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err);
-adcsample_t getADCSample(const ADCManager *adcManager, uint8_t muxIndex);
+static inline adcsample_t getADCSample(const ADCManager *m, uint8_t muxIndex) {
+    if (muxIndex < 2)
+        return m->sampleBuffer1[muxIndex];
+    else if (muxIndex < 4)
+        return m->sampleBuffer2[muxIndex - 2];
+    else if (muxIndex < 6)
+        return m->sampleBuffer4[1 - (muxIndex - 4)]; // swaps order for ADC4
+    return 0;
+}
 bool waitForAdcConversion(void);
 
 #endif

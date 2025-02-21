@@ -8,12 +8,6 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 // Define the global ADC manager instance
 ADCManager adcManager;
 
-const ADCManager *getAdcManagerSnapshot(void) {
-    static ADCManager snapshot;
-    snapshot = adcManager;
-    return &snapshot;
-}
-
 static void adcCompleteCallback(ADCDriver *adcp) {
     (void)adcp; // Unused parameter
     adcManager.completedConversions++;
@@ -93,23 +87,4 @@ msg_t adcStartAllConversions(uint8_t channel) {
     adcStartConversionI(&ADCD4, &adcConversionGroup, adcManager.sampleBuffer4, 1);
 
     return MSG_OK;
-}
-
-adcsample_t getADCSample(const ADCManager *adcManager, uint8_t muxIndex) {
-    switch (muxIndex) {
-        case 0:
-            return adcManager->sampleBuffer1[0];
-        case 1:
-            return adcManager->sampleBuffer1[1];
-        case 2:
-            return adcManager->sampleBuffer2[0];
-        case 3:
-            return adcManager->sampleBuffer2[1];
-        case 4:
-            return adcManager->sampleBuffer4[1]; // SWAPPED!!! Due to physical hardware arrangement
-        case 5:
-            return adcManager->sampleBuffer4[0];
-        default:
-            return 0; // Invalid index
-    }
 }

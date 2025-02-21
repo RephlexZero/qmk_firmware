@@ -15,6 +15,7 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 
 // External definitions
 extern const mux_t mux_index[MUXES][MUX_CHANNELS];
+extern ADCManager  adcManager;
 
 analog_key_t    keys[MATRIX_ROWS][MATRIX_COLS] = {0};
 static uint16_t pressedAdcValue                = 0;
@@ -38,17 +39,14 @@ static inline uint8_t greycode(uint8_t channel) {
     return (channel >> 1) ^ channel;
 }
 
-// Process the ADC readings for the previous multiplexer channel scan.
-static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
-    const ADCManager *adcManager      = getAdcManagerSnapshot();
-    const uint8_t sequence[MUXES] = {0, 2, 5, 1, 3, 4};
-    for (uint8_t i = 0; i < MUXES; ++i) {
-        uint8_t      mux     = sequence[i];
+// Modify process_adc_readings to accept a snapshot pointer.
+static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch, const ADCManager *snapshot) {
+    for (uint8_t mux = 0; mux < MUXES; ++mux) {
         const mux_t *mux_idx = &mux_index[mux][ch];
         if (mux_idx->row == 255 && mux_idx->col == 255) continue; // Skip unconnected mux pin.
 
         analog_key_t *key = &keys[mux_idx->row][mux_idx->col];
-        key->raw          = getADCSample(adcManager, mux);
+        key->raw          = getADCSample(snapshot, mux);
         key->value        = lut[key->raw + key->offset];
 
         switch (g_config.mode) {
@@ -71,20 +69,24 @@ static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch) {
 
 bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     memcpy(previous_matrix, current_matrix, sizeof(previous_matrix));
-    uint8_t prev_ch = greycode(0);
 
-    // Start the first ADC conversion outside the loop.
-    adcStartAllConversions(prev_ch);
+    // Start first ADC conversion and wait for its result.
+    uint8_t current = greycode(0);
+    adcStartAllConversions(current);
     waitForAdcConversion();
+    ADCManager curr_snapshot = adcManager;
 
-    // Iterate over remaining multiplexer channels.
-    for (uint8_t ch = 1; ch < MUX_CHANNELS; ++ch) {
-        uint8_t grey_ch = greycode(ch);
-        adcStartAllConversions(grey_ch);
-        process_adc_readings(current_matrix, prev_ch);
+    // Pipeline the ADC conversions.
+    for (uint8_t ch = 1; ch < MUX_CHANNELS; ch++) {
+        uint8_t next = greycode(ch);
+        adcStartAllConversions(next);
+        process_adc_readings(current_matrix, current, &curr_snapshot);
         waitForAdcConversion();
-        prev_ch = grey_ch;
+        curr_snapshot = adcManager;
+        current       = next;
     }
+    // Process the final conversion result.
+    process_adc_readings(current_matrix, current, &curr_snapshot);
 
 #ifdef ENCODER_ENABLE
     bool encoder_button_pressed = gpio_read_pin(ENCODER_BUTTON_PIN);
