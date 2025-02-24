@@ -29,6 +29,8 @@ void matrix_init_custom(void) {
     restAdcValue    = distance_to_adc(0);
     multiplexer_init();
     initADCGroups();
+    select_mux(0);
+    adcStartAllConversions();
     wait_ms(100);
     get_sensor_offsets();
 }
@@ -71,16 +73,16 @@ static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch, cons
 bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     memcpy(previous_matrix, current_matrix, sizeof(previous_matrix));
 
+    scanActive = true;
     // Start first ADC conversion and wait for its result.
     uint8_t current = greycode(0);
-    adcStartAllConversions(current);
     waitForAdcConversion();
     ADCManager curr_snapshot = *getAdcManagerSnapshot();
 
     // Pipeline the ADC conversions.
     for (uint8_t ch = 1; ch < MUX_CHANNELS; ch++) {
         uint8_t next = greycode(ch);
-        adcStartAllConversions(next);
+        select_mux(next);
         process_adc_readings(current_matrix, current, &curr_snapshot);
         waitForAdcConversion();
         curr_snapshot = *getAdcManagerSnapshot();
@@ -88,7 +90,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     }
     // Process the final conversion result.
     process_adc_readings(current_matrix, current, &curr_snapshot);
-
+    select_mux(0);
 #ifdef ENCODER_ENABLE
     bool encoder_button_pressed = gpio_read_pin(ENCODER_BUTTON_PIN);
     if (current_matrix[ENCODER_ROW] & (1 << ENCODER_COL)) {
@@ -101,5 +103,6 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
         }
     }
 #endif
+    scanActive = false;
     return memcmp(previous_matrix, current_matrix, sizeof(previous_matrix)) != 0;
 }

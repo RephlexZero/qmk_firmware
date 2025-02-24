@@ -4,13 +4,17 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #include "custom_analog.h"
 #include "print.h"
 #include "multiplexer.h"
+#include "stm32f303xc.h"
 
 // Define the global ADC manager instance
 ADCManager adcManager;
 
 static void adcCompleteCallback(ADCDriver *adcp) {
-    (void)adcp; // Unused parameter
-    chSemSignalI(&adcManager.sem);
+    (void)adcp;
+    if (++adcManager.completedConversions >= ADC_GROUPS && scanActive) {
+        adcManager.completedConversions = 0;
+        chSemSignalI(&adcManager.sem);
+    }
 }
 
 bool waitForAdcConversion(void) {
@@ -47,7 +51,7 @@ static const ADCConversionGroup adcConversionGroup = {
     .num_channels = 2U,
     .end_cb       = adcCompleteCallback,
     .error_cb     = adcErrorCallback,
-    .cfgr         = ADC_RESOLUTION | ADC_CFGR_DMAEN, // Enable DMA
+    .cfgr         = ADC_RESOLUTION | ADC_CFGR_DMAEN | ADC_CFGR_CONT, // Enable DMA
     .tr1          = ADC_TR_DISABLED,
     .tr2          = ADC_TR_DISABLED,
     .tr3          = ADC_TR_DISABLED,
@@ -72,9 +76,8 @@ void initADCGroups() {
     adcStart(&ADCD4, NULL); // Start ADC4
 }
 
-msg_t adcStartAllConversions(uint8_t channel) {
+msg_t adcStartAllConversions() {
     adcManager.completedConversions = 0;
-    select_mux(channel);
 
     // Start conversions on multiple ADCs
     adcStartConversionI(&ADCD1, &adcConversionGroup, adcManager.sampleBuffer1, 1);
