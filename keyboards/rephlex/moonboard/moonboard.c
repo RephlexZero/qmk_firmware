@@ -78,7 +78,7 @@ uint32_t idle_recalibrate_callback(uint32_t trigger_time, void *cb_arg) {
 #endif
 
 void values_load(void) {
-    eeconfig_read_kb_datablock(&g_config);
+    eeconfig_read_kb_datablock(&g_config, 0, sizeof(g_config));
 
     // Validate loaded configuration and set safe defaults if invalid
     if (g_config.mode > 3) {
@@ -98,7 +98,7 @@ void values_load(void) {
 }
 
 void values_save(void) {
-    eeconfig_update_kb_datablock(&g_config);
+    eeconfig_update_kb_datablock(&g_config, 0, sizeof(g_config));
 }
 
 void eeconfig_init_kb() {
