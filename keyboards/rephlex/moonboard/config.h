@@ -30,6 +30,21 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 
 #define CALIBRATION_RANGE 255
 
+// Optional: enable a tiny moving average for raw ADC to reduce noise (0=disabled)
+#ifndef ANALOG_FILTER_TAPS
+#define ANALOG_FILTER_TAPS 0
+#endif
+
+// Validate filter configuration
+#if (ANALOG_FILTER_TAPS < 0) || (ANALOG_FILTER_TAPS > 32)
+#error "ANALOG_FILTER_TAPS must be between 0 and 32"
+#endif
+
+// ADC timeout for safety (microseconds)
+#ifndef ADC_TIMEOUT_US
+#define ADC_TIMEOUT_US 1000
+#endif
+
 #ifdef RGB_MATRIX_ENABLE
 #define WS2812_PWM_TARGET_PERIOD 800000
 #define WS2812_PWM_DRIVER PWMD16

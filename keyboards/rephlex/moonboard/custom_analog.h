@@ -27,7 +27,7 @@ bool scanActive;
 const ADCManager *getAdcManagerSnapshot(void);
 
 void initADCGroups(void);
-msg_t adcStartAllConversions(void);
+msg_t adcStartAllConversions(uint8_t channel);
 void adcErrorCallback(ADCDriver *adcp, adcerror_t err);
 static inline adcsample_t getADCSample(const ADCManager *m, uint8_t muxIndex) {
     if (muxIndex < 2)

@@ -29,18 +29,11 @@ void matrix_init_custom(void) {
     restAdcValue    = distance_to_adc(0);
     multiplexer_init();
     initADCGroups();
-    select_mux(0);
-    adcStartAllConversions();
     wait_ms(100);
     get_sensor_offsets();
 }
 
 matrix_row_t previous_matrix[MATRIX_ROWS];
-
-// Add the greycode conversion function
-static inline uint8_t greycode(uint8_t channel) {
-    return (channel >> 1) ^ channel;
-}
 
 // Modify process_adc_readings to accept a snapshot pointer.
 static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch, const ADCManager *snapshot) {
@@ -74,22 +67,31 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     memcpy(previous_matrix, current_matrix, sizeof(previous_matrix));
 
     scanActive = true;
-    // Start first ADC conversion and wait for its result.
-    uint8_t current = greycode(0);
-    waitForAdcConversion();
-    ADCManager curr_snapshot = *getAdcManagerSnapshot();
 
-    // Pipeline the ADC conversions.
+    // Kick off the first conversion on channel 0 (binary order).
+    uint8_t     current       = 0;
+    adcStartAllConversions(current);
+
+    // Iterate remaining channels, pipelining conversions: wait -> snapshot -> process -> start next
     for (uint8_t ch = 1; ch < MUX_CHANNELS; ch++) {
-        uint8_t next = greycode(ch);
-        select_mux(next);
-        process_adc_readings(current_matrix, current, &curr_snapshot);
+        // Wait for the current conversion to finish
         waitForAdcConversion();
-        curr_snapshot = *getAdcManagerSnapshot();
-        current       = next;
+
+        // Snapshot results and process the current channel
+        ADCManager curr_snapshot = *getAdcManagerSnapshot();
+        process_adc_readings(current_matrix, current, &curr_snapshot);
+
+        // Start the next channel conversion
+        current = ch; // binary order
+        adcStartAllConversions(current);
     }
-    // Process the final conversion result.
-    process_adc_readings(current_matrix, current, &curr_snapshot);
+
+    // Final channel: wait, snapshot, process
+    waitForAdcConversion();
+    ADCManager final_snapshot = *getAdcManagerSnapshot();
+    process_adc_readings(current_matrix, current, &final_snapshot);
+
+    // Return MUX to channel 0 (idle)
     select_mux(0);
 #ifdef ENCODER_ENABLE
     bool encoder_button_pressed = gpio_read_pin(ENCODER_BUTTON_PIN);

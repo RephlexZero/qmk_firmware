@@ -11,7 +11,7 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #include "multiplexer.h"
 #include "lut.h"
 
-analog_config g_config = {.mode = static_actuation, .actuation_point = 48, .press_sensitivity = 32, .release_sensitivity = 32, .press_hysteresis = 0, .release_hysteresis = 5};
+analog_config g_config = {.mode = continuous_dynamic_actuation, .actuation_point = 48, .press_sensitivity = 32, .release_sensitivity = 32, .press_hysteresis = 0, .release_hysteresis = 5};
 
 #ifdef BOOTMAGIC_ENABLE
 void bootmagic_scan(void) {
@@ -26,17 +26,16 @@ void bootmagic_scan(void) {
 }
 #endif
 
-
 #ifdef DEFERRED_EXEC_ENABLE
 
 #    ifdef DEBUG_ENABLE
-#    ifdef DEBUG_PRINT
+#        ifdef DEBUG_PRINT
 deferred_token debug_token;
 
 bool debug_print(void) {
-    static char rowBuffer[MATRIX_COLS * 8]; // 8: for 7 characters (" null  " or " 12345  ") + '\0'
+    static char    rowBuffer[MATRIX_COLS * 8]; // 8: for 7 characters (" null  " or " 12345  ") + '\0'
     static uint8_t currentRow = 0;
-    char *bufferPtr = rowBuffer;
+    char          *bufferPtr  = rowBuffer;
 
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         analog_key_t *key = &keys[currentRow][col];
@@ -63,8 +62,8 @@ uint32_t debug_print_callback(uint32_t trigger_time, void *cb_arg) {
     debug_print();
     return 100; // Assuming this is in milliseconds
 }
-#endif
-#endif
+#        endif
+#    endif
 
 deferred_token idle_recalibrate_token;
 bool           process_record_kb(uint16_t keycode, keyrecord_t *record) {
@@ -80,6 +79,22 @@ uint32_t idle_recalibrate_callback(uint32_t trigger_time, void *cb_arg) {
 
 void values_load(void) {
     eeconfig_read_kb_datablock(&g_config);
+
+    // Validate loaded configuration and set safe defaults if invalid
+    if (g_config.mode > 3) {
+        g_config.mode = continuous_dynamic_actuation;
+    }
+
+    // Ensure actuation values are in reasonable ranges
+    if (g_config.actuation_point == 0) {
+        g_config.actuation_point = 48;
+    }
+    if (g_config.press_sensitivity == 0) {
+        g_config.press_sensitivity = 32;
+    }
+    if (g_config.release_sensitivity == 0) {
+        g_config.release_sensitivity = 32;
+    }
 }
 
 void values_save(void) {
@@ -93,9 +108,9 @@ void eeconfig_init_kb() {
 void keyboard_post_init_kb(void) {
 #ifdef DEFERRED_EXEC_ENABLE
 #    ifdef DEBUG_ENABLE
-#    ifdef DEBUG_PRINT
+#        ifdef DEBUG_PRINT
     debug_token = defer_exec(1000, debug_print_callback, NULL);
-#    endif
+#        endif
 #    endif
     idle_recalibrate_token = defer_exec(300000, idle_recalibrate_callback, NULL);
 #endif
@@ -154,22 +169,40 @@ void via_config_set_value(uint8_t *data) {
 
     switch (*value_id) {
         case id_mode:
-            g_config.mode = *value_data;
+            // Validate mode value (assume valid modes are 0-3)
+            if (*value_data <= 3) {
+                g_config.mode = *value_data;
+            }
             break;
         case id_actuation_point:
-            g_config.actuation_point = *value_data * 255 / 40;
+            // Clamp value to valid range (0-40 maps to 0-255)
+            if (*value_data <= 40) {
+                g_config.actuation_point = *value_data * 255 / 40;
+            }
             break;
         case id_press_sensitivity:
-            g_config.press_sensitivity = *value_data * 255 / 40;
+            // Clamp value to valid range
+            if (*value_data <= 40) {
+                g_config.press_sensitivity = *value_data * 255 / 40;
+            }
             break;
         case id_release_sensitivity:
-            g_config.release_sensitivity = *value_data * 255 / 40;
+            // Clamp value to valid range
+            if (*value_data <= 40) {
+                g_config.release_sensitivity = *value_data * 255 / 40;
+            }
             break;
         case id_press_hysteresis:
-            g_config.press_hysteresis = *value_data * 255 / 40;
+            // Clamp value to valid range
+            if (*value_data <= 40) {
+                g_config.press_hysteresis = *value_data * 255 / 40;
+            }
             break;
         case id_release_hysteresis:
-            g_config.release_hysteresis = *value_data * 255 / 40;
+            // Clamp value to valid range
+            if (*value_data <= 40) {
+                g_config.release_hysteresis = *value_data * 255 / 40;
+            }
             break;
     }
 }

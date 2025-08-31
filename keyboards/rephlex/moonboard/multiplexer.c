@@ -6,20 +6,38 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 const pin_t mux_pins[MUXES] = MUX_PINS;
 const pin_t mux_selector_pins[MUX_SELECTOR_BITS] = MUX_SELECTOR_PINS;
 
+// Compile-time sanity checks
+_Static_assert(MUX_CHANNELS == (1U << MUX_SELECTOR_BITS), "MUX_CHANNELS must equal (1 << MUX_SELECTOR_BITS)");
+_Static_assert((sizeof mux_index / sizeof mux_index[0]) == MUXES, "mux_index first dimension must equal MUXES");
+_Static_assert((sizeof mux_index[0] / sizeof mux_index[0][0]) == MUX_CHANNELS, "mux_index second dimension must equal MUX_CHANNELS");
+
 void multiplexer_init(void) {
+    // Initialize selector pins to known state (channel 0)
     for (uint8_t i = 0; i < MUX_SELECTOR_BITS; i++) {
         pin_t pin = mux_selector_pins[i];
         setPinOutput(pin);
+        writePin(pin, 0); // Set all selector bits to 0 (channel 0)
     }
+    
+    // Initialize current channel to match hardware state
+    current_channel = 0;
+    
+    // Small delay to ensure multiplexer settles
+    wait_us(10);
 }
 
 bool select_mux(uint8_t channel) {
-    if (channel > MUX_CHANNELS) return 0;
+    // Bounds check with tighter constraint (channel must be strictly less than MUX_CHANNELS)
+    if (channel >= MUX_CHANNELS) {
+        return false;
+    }
+    
+    // Binary channel selection using bit manipulation
     for (uint8_t i = 0; i < MUX_SELECTOR_BITS; i++) {
-        writePin(mux_selector_pins[i], channel & (1 << i));
+        writePin(mux_selector_pins[i], (channel >> i) & 1);
     }
     current_channel = channel;
-    return 1;
+    return true;
 }
 
 const mux_t NC = {255,255}; // A coord with a Null pin (from JSON)
