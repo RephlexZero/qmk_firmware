@@ -20,7 +20,11 @@ static void adcCompleteCallback(ADCDriver *adcp) {
 
 bool waitForAdcConversion(void) {
     // Wait until all ADC groups have completed the current conversion set.
-    chSemWait(&adcManager.sem);
+    // Use a timeout to prevent hanging (e.g. 2ms, which is plenty for ADC)
+    msg_t result = chSemWaitTimeout(&adcManager.sem, TIME_MS2I(2));
+    if (result == MSG_TIMEOUT) {
+        return false;
+    }
     return true;
 }
 
@@ -45,6 +49,11 @@ void adcErrorCallback(ADCDriver *adcp, adcerror_t err) {
         default:
             uprintf("ADC ERROR: Unknown error.\n");
             break;
+    }
+    // Signal semaphore to prevent main loop hang
+    adcManager.completedConversions++;
+    if (adcManager.completedConversions >= ADC_GROUPS) {
+        chSemSignalI(&adcManager.sem);
     }
 }
 
@@ -78,6 +87,7 @@ void initADCGroups() {
 }
 
 msg_t adcStartAllConversions(uint8_t channel) {
+    chSysLock();
     // Prepare for a new conversion set
     adcManager.completedConversions = 0;
     select_mux(channel);
@@ -86,6 +96,7 @@ msg_t adcStartAllConversions(uint8_t channel) {
     adcStartConversionI(&ADCD1, &adcConversionGroup, adcManager.sampleBuffer1, 1);
     adcStartConversionI(&ADCD2, &adcConversionGroup, adcManager.sampleBuffer2, 1);
     adcStartConversionI(&ADCD4, &adcConversionGroup, adcManager.sampleBuffer4, 1);
+    chSysUnlock();
 
     return MSG_OK;
 }
