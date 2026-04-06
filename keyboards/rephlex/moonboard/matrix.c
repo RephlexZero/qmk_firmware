@@ -35,31 +35,36 @@ void matrix_init_custom(void) {
 
 matrix_row_t previous_matrix[MATRIX_ROWS];
 
-// Modify process_adc_readings to accept a snapshot pointer.
+typedef void (*scan_fn_t)(matrix_row_t *, uint8_t, analog_key_t *);
+
 static void process_adc_readings(matrix_row_t current_matrix[], uint8_t ch, const ADCManager *snapshot) {
+    // Resolve the scan function once before the loop — g_config.mode is
+    // constant for the duration of a scan, so the switch runs once per
+    // channel call (16×) instead of once per key (16×6=96×).
+    scan_fn_t scan_fn;
+    switch (g_config.mode) {
+        case dynamic_actuation:            scan_fn = matrix_read_cols_dynamic_actuation;            break;
+        case continuous_dynamic_actuation: scan_fn = matrix_read_cols_continuous_dynamic_actuation; break;
+        case static_actuation:             scan_fn = matrix_read_cols_static_actuation;             break;
+        case flashing:
+        default:
+            bootloader_jump();
+            return;
+    }
+
     for (uint8_t mux = 0; mux < MUXES; ++mux) {
         const mux_t *mux_idx = &mux_index[mux][ch];
         if (mux_idx->row == 255 && mux_idx->col == 255) continue; // Skip unconnected mux pin.
 
         analog_key_t *key = &keys[mux_idx->row][mux_idx->col];
-        key->raw          = getADCSample(snapshot, mux);
-        key->value        = lut[key->raw + key->offset];
+        key->raw = getADCSample(snapshot, mux);
 
-        switch (g_config.mode) {
-            case dynamic_actuation:
-                matrix_read_cols_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
-                break;
-            case continuous_dynamic_actuation:
-                matrix_read_cols_continuous_dynamic_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
-                break;
-            case static_actuation:
-                matrix_read_cols_static_actuation(&current_matrix[mux_idx->row], mux_idx->col, key);
-                break;
-            case flashing:
-            default:
-                bootloader_jump();
-                break;
-        }
+        // Clamp index before LUT access: raw (uint16) + offset (int16) can
+        // exceed [0, ADC_RESOLUTION_MAX-1] when a key is at travel extremes.
+        int32_t idx = (int32_t)key->raw + key->offset;
+        key->value  = lut[MAX(MIN(idx, ADC_RESOLUTION_MAX - 1), 0)];
+
+        scan_fn(&current_matrix[mux_idx->row], mux_idx->col, key);
     }
 }
 

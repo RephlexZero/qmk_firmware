@@ -18,7 +18,7 @@ typedef struct {
     adcsample_t sampleBuffer1[SAMPLE_BUFFER_SIZE];
     adcsample_t sampleBuffer2[SAMPLE_BUFFER_SIZE];
     adcsample_t sampleBuffer4[SAMPLE_BUFFER_SIZE];
-    volatile int completedConversions;
+    volatile uint8_t completedConversions;
     semaphore_t sem;
 } ADCManager;
 

@@ -11,31 +11,55 @@ _Static_assert(MUX_CHANNELS == (1U << MUX_SELECTOR_BITS), "MUX_CHANNELS must equ
 _Static_assert((sizeof mux_index / sizeof mux_index[0]) == MUXES, "mux_index first dimension must equal MUXES");
 _Static_assert((sizeof mux_index[0] / sizeof mux_index[0][0]) == MUX_CHANNELS, "mux_index second dimension must equal MUX_CHANNELS");
 
-void multiplexer_init(void) {
-    // Initialize selector pins to known state (channel 0)
-    for (uint8_t i = 0; i < MUX_SELECTOR_BITS; i++) {
-        pin_t pin = mux_selector_pins[i];
-        setPinOutput(pin);
-        writePin(pin, 0); // Set all selector bits to 0 (channel 0)
+// Atomic mux selector: pre-computed GPIOB BSRR values for all 16 channels.
+// All 4 selector pins (B11, B10, B1, B2) are on GPIOB, so a single BSRR
+// write updates them simultaneously with no intermediate glitch states.
+// Bit mapping (matches MUX_SELECTOR_PINS order {B11, B10, B1, B2}):
+//   channel bit 0 → PB11 (0x0800)
+//   channel bit 1 → PB10 (0x0400)
+//   channel bit 2 → PB1  (0x0002)
+//   channel bit 3 → PB2  (0x0004)
+// BSRR format: bits[15:0] = set HIGH, bits[31:16] = set LOW (write 0 = no effect)
+static const uint16_t mux_pin_bits[MUX_SELECTOR_BITS] = {
+    1U << 11, // PB11 (channel bit 0)
+    1U << 10, // PB10 (channel bit 1)
+    1U << 1,  // PB1  (channel bit 2)
+    1U << 2,  // PB2  (channel bit 3)
+};
+static const uint16_t MUX_PORT_MASK = (1U << 11) | (1U << 10) | (1U << 1) | (1U << 2);
+static uint32_t mux_bsrr[MUX_CHANNELS];
+
+static void build_mux_bsrr_table(void) {
+    for (uint8_t ch = 0; ch < MUX_CHANNELS; ch++) {
+        uint16_t set_mask = 0;
+        for (uint8_t i = 0; i < MUX_SELECTOR_BITS; i++) {
+            if (ch & (1U << i)) set_mask |= mux_pin_bits[i];
+        }
+        mux_bsrr[ch] = (uint32_t)set_mask | ((uint32_t)(MUX_PORT_MASK & ~set_mask) << 16);
     }
-    
-    // Initialize current channel to match hardware state
+}
+
+void multiplexer_init(void) {
+    // Initialize selector pins to output
+    for (uint8_t i = 0; i < MUX_SELECTOR_BITS; i++) {
+        setPinOutput(mux_selector_pins[i]);
+    }
+
+    build_mux_bsrr_table();
+
+    // Drive all selector pins LOW atomically (channel 0)
+    GPIOB->BSRR.W = mux_bsrr[0];
     current_channel = 0;
-    
+
     // Small delay to ensure multiplexer settles
     wait_us(10);
 }
 
 bool select_mux(uint8_t channel) {
-    // Bounds check with tighter constraint (channel must be strictly less than MUX_CHANNELS)
-    if (channel >= MUX_CHANNELS) {
-        return false;
-    }
-    
-    // Binary channel selection using bit manipulation
-    for (uint8_t i = 0; i < MUX_SELECTOR_BITS; i++) {
-        writePin(mux_selector_pins[i], (channel >> i) & 1);
-    }
+    if (channel >= MUX_CHANNELS) return false;
+    // Atomically update all 4 selector pins in one BSRR write —
+    // no intermediate mux states, no glitch sampling.
+    GPIOB->BSRR.W = mux_bsrr[channel];
     current_channel = channel;
     return true;
 }

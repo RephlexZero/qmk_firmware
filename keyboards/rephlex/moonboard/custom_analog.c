@@ -12,8 +12,12 @@ ADCManager adcManager;
 static void adcCompleteCallback(ADCDriver *adcp) {
     (void)adcp; // Unused parameter
     // Count completions across ADC1/2/4; signal once all have completed.
+    // Safe: DMA ISRs at equal priority are serialized by the Cortex-M4 NVIC
+    // (no preemption at same priority), and the reset to 0 in
+    // adcStartAllConversions is done under chSysLock. Use == not >= to
+    // avoid a double-signal if an ADC fires spuriously after the count hits ADC_GROUPS.
     adcManager.completedConversions++;
-    if (adcManager.completedConversions >= ADC_GROUPS) {
+    if (adcManager.completedConversions == ADC_GROUPS) {
         chSemSignalI(&adcManager.sem);
     }
 }
@@ -52,7 +56,7 @@ void adcErrorCallback(ADCDriver *adcp, adcerror_t err) {
     }
     // Signal semaphore to prevent main loop hang
     adcManager.completedConversions++;
-    if (adcManager.completedConversions >= ADC_GROUPS) {
+    if (adcManager.completedConversions == ADC_GROUPS) {
         chSemSignalI(&adcManager.sem);
     }
 }

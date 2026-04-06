@@ -21,12 +21,12 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #define DEBUG_ENABLE
 #ifdef DEBUG_ENABLE
 // #define DEBUG_PRINT
-#define DEBUG_MATRIX_SCAN_RATE
+// #define DEBUG_MATRIX_SCAN_RATE
 #endif
 
 #define ADC_RESOLUTION      ADC_CFGR_RES_12BITS
 #define ADC_SAMPLING_TIME  ADC_SMPR_SMP_2P5
-#define ADC_RESOLUTION_MAX  1 << 12
+#define ADC_RESOLUTION_MAX  (1 << 12)
 
 #define CALIBRATION_RANGE 255
 
