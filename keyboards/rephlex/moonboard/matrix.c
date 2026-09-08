@@ -99,7 +99,7 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
     // Return MUX to channel 0 (idle)
     select_mux(0);
 #ifdef ENCODER_ENABLE
-    bool encoder_button_pressed = gpio_read_pin(ENCODER_BUTTON_PIN);
+    bool encoder_button_pressed = !gpio_read_pin(ENCODER_BUTTON_PIN);
     if (current_matrix[ENCODER_ROW] & (1 << ENCODER_COL)) {
         if (!encoder_button_pressed) {
             deregister_key(&current_matrix[ENCODER_ROW], ENCODER_COL);
