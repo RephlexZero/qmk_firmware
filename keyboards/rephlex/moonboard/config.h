@@ -46,11 +46,19 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #endif
 
 #ifdef RGB_MATRIX_ENABLE
-#define WS2812_PWM_TARGET_PERIOD 800000
 #define WS2812_PWM_DRIVER PWMD16
 #define WS2812_PWM_CHANNEL 1
 #define WS2812_PWM_PAL_MODE 1
-#define WS2812_DMA_STREAM STM32_DMA1_STREAM3
+#define WS2812_PWM_DMA_STREAM STM32_DMA1_STREAM3
+#define WS2812_PWM_DMA_CHANNEL 3
+
+// SK6812 Mini-E timings (centered on 300ns/600ns after BSS138 1k pull-up rise time)
+#define WS2812_TIMING 1250
+#define WS2812_T0H 375
+#define WS2812_T1H 675
+#define WS2812_TRST_US 280
+#define RGB_MATRIX_LED_FLUSH_LIMIT 16
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 160
 #endif
 
 #ifdef OLED_ENABLE
@@ -73,4 +81,4 @@ SPDX-License-Identifier: GPL-2.0-or-later */
 #define STARTUP_SONG SONG(ZELDA_PUZZLE)
 #define GOODBYE_SONG SONG()
 #endif
-
+#define USB_SUSPEND_WAKEUP_DELAY 500

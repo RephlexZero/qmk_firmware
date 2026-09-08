@@ -346,7 +346,12 @@ void ws2812_init(void) {
     dmaStreamAlloc(WS2812_PWM_DMA_STREAM - STM32_DMA_STREAM(0), 10, NULL, NULL);
     dmaStreamSetPeripheral(WS2812_PWM_DMA_STREAM, &(WS2812_PWM_DRIVER.tim->CCR[WS2812_PWM_CHANNEL - 1])); // Ziel ist der An-Zeit im Cap-Comp-Register
     dmaStreamSetMemory0(WS2812_PWM_DMA_STREAM, ws2812_frame_buffer);
+#if defined(WS2812_PWM_CIRCULAR)
     dmaStreamSetMode(WS2812_PWM_DMA_STREAM, STM32_DMA_CR_CHSEL(WS2812_PWM_DMA_CHANNEL) | STM32_DMA_CR_DIR_M2P | WS2812_PWM_DMA_PERIPHERAL_WIDTH | WS2812_PWM_DMA_MEMORY_WIDTH | STM32_DMA_CR_MINC | STM32_DMA_CR_CIRC | STM32_DMA_CR_PL(3));
+#else
+    // One-shot DMA mode: avoids tearing and continuous bus contention
+    dmaStreamSetMode(WS2812_PWM_DMA_STREAM, STM32_DMA_CR_CHSEL(WS2812_PWM_DMA_CHANNEL) | STM32_DMA_CR_DIR_M2P | WS2812_PWM_DMA_PERIPHERAL_WIDTH | WS2812_PWM_DMA_MEMORY_WIDTH | STM32_DMA_CR_MINC | STM32_DMA_CR_PL(3));
+#endif
 #endif
     dmaStreamSetTransactionSize(WS2812_PWM_DMA_STREAM, WS2812_BIT_N);
     // M2P: Memory 2 Periph; PL: Priority Level
@@ -410,11 +415,34 @@ void ws2812_set_color_all(uint8_t red, uint8_t green, uint8_t blue) {
 }
 
 void ws2812_flush(void) {
-    for (int i = 0; i < WS2812_LED_COUNT; i++) {
-#if defined(WS2812_RGBW)
-        ws2812_write_led_rgbw(i, ws2812_leds[i].r, ws2812_leds[i].g, ws2812_leds[i].b, ws2812_leds[i].w);
-#else
-        ws2812_write_led(i, ws2812_leds[i].r, ws2812_leds[i].g, ws2812_leds[i].b);
-#endif
+#if !defined(WS2812_PWM_CIRCULAR)
+    // Wait for any in-flight DMA transmission to finish (~2.7ms max)
+    uint32_t timeout = 100000;
+    while (dmaStreamGetTransactionSize(WS2812_PWM_DMA_STREAM) > 0 && --timeout) {
+        // Spin-wait safely while DMA finishes previous frame
     }
+
+    // Safely update the frame buffer while DMA is idle (zero tearing)
+    for (int i = 0; i < WS2812_LED_COUNT; i++) {
+#    if defined(WS2812_RGBW)
+        ws2812_write_led_rgbw(i, ws2812_leds[i].r, ws2812_leds[i].g, ws2812_leds[i].b, ws2812_leds[i].w);
+#    else
+        ws2812_write_led(i, ws2812_leds[i].r, ws2812_leds[i].g, ws2812_leds[i].b);
+#    endif
+    }
+
+    // Trigger one-shot DMA transfer of the entire frame + reset
+    dmaStreamDisable(WS2812_PWM_DMA_STREAM);
+    dmaStreamSetMemory0(WS2812_PWM_DMA_STREAM, ws2812_frame_buffer);
+    dmaStreamSetTransactionSize(WS2812_PWM_DMA_STREAM, WS2812_BIT_N);
+    dmaStreamEnable(WS2812_PWM_DMA_STREAM);
+#else
+    for (int i = 0; i < WS2812_LED_COUNT; i++) {
+#    if defined(WS2812_RGBW)
+        ws2812_write_led_rgbw(i, ws2812_leds[i].r, ws2812_leds[i].g, ws2812_leds[i].b, ws2812_leds[i].w);
+#    else
+        ws2812_write_led(i, ws2812_leds[i].r, ws2812_leds[i].g, ws2812_leds[i].b);
+#    endif
+    }
+#endif
 }

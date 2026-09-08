@@ -41,7 +41,7 @@
   },
   "rgb_matrix": {
     "driver": "ws2812",
-    "max_brightness": 255,
+    "max_brightness": 160,
     "default_brightness": 32,
     "led_count": 81,
     "sleep": true,
@@ -149,7 +149,7 @@
       {"flags": 4, "matrix": [3, 10], "x": 155, "y": 37},
       {"flags": 4, "matrix": [3, 11], "x": 169, "y": 37},
       {"flags": 4, "matrix": [3, 12], "x": 184, "y": 37},
-      {"flags": 4, "matrix": [3, 13], "x": 224, "y": 37},
+      {"flags": 4, "matrix": [2, 13], "x": 200, "y": 32},
 
       {"flags": 4, "matrix": [4, 12], "x": 177, "y": 49},
       {"flags": 4, "matrix": [4, 11], "x": 162, "y": 49},
